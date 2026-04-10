@@ -41,7 +41,7 @@ _SCREENER_URLS = [
 ]
 _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; sentiment-scanner/1.0)"}
 _TOP_N_PER_URL = 10   # rows to take from each screener URL
-_FINAL_CAP = 5        # final watchlist capped at 5 — keeps scans well under 60s
+_FINAL_CAP = 3        # final watchlist capped at 3 — keeps scans well under 60s
 _REFRESH_TTL = 1800   # seconds before a refresh is considered stale (30 min)
 
 

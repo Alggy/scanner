@@ -8,12 +8,12 @@ from backend.scrapers import yahoo, newsapi   # Finviz news dropped — too slow
 from backend.watchlist import refresh_watchlist
 import backend.watchlist as watchlist_module
 from backend.analysis.ticker_extractor import extract_ticker_post_pairs
-from backend.analysis.sentiment import score_posts
+from backend.analysis.sentiment import score_all_tickers
 
 scheduler = BackgroundScheduler()
 
 _MAX_WORKERS = 5          # concurrent HTTP requests
-_BACKFILL_CAP = 30        # max unscored posts to catch up per cycle (was 200)
+_BACKFILL_CAP = 0         # no backfill on Vercel — only score newly scraped posts
 
 
 def _scrape_ticker(ticker: str) -> list:
@@ -78,22 +78,10 @@ def run_scan():
 
         db.commit()
 
-        # 3. Backfill up to _BACKFILL_CAP existing unscored posts
-        scored_ids = {row[0] for row in db.query(SentimentScore.post_id).all()}
-        unscored_q = db.query(Post).filter(Post.id.notin_(scored_ids)) if scored_ids else db.query(Post)
-        unscored = unscored_q.order_by(Post.id.desc()).limit(_BACKFILL_CAP).all()
-        for post_row in unscored:
-            if post_row.ticker not in ticker_post_map:
-                ticker_post_map[post_row.ticker] = []
-            ticker_post_map[post_row.ticker].append({
-                "db_id": post_row.id,
-                "text": post_row.text,
-            })
-
-        # 4. Score sentiment per ticker (Claude Haiku batch)
-        for ticker, posts in ticker_post_map.items():
-            scores = score_posts(ticker, posts)
-            for s in scores:
+        # 3. Score sentiment — ONE Claude call for all tickers/posts combined
+        if ticker_post_map:
+            all_scores = score_all_tickers(ticker_post_map)
+            for s in all_scores:
                 if s["post_id"] is None:
                     continue
                 db.add(SentimentScore(
@@ -104,7 +92,7 @@ def run_scan():
                     reason=s["reason"],
                 ))
                 posts_scored += 1
-        db.commit()
+            db.commit()
 
         # 5. Upsert ticker summaries
         _update_ticker_summaries(db, list(ticker_post_map.keys()))

@@ -22,7 +22,7 @@ def fetch_posts(tickers: list) -> Generator[dict, None, None]:
         try:
             resp = requests.get(
                 _BASE,
-                params={"q": ticker, "newsCount": 10, "quotesCount": 0},
+                params={"q": ticker, "newsCount": 5, "quotesCount": 0},
                 headers=_HEADERS,
                 timeout=10,
             )

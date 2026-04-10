@@ -11,7 +11,7 @@ from typing import Generator
 import requests
 
 _BASE = "https://newsapi.org/v2/everything"
-_PAGE_SIZE = 10
+_PAGE_SIZE = 5
 
 
 def _make_id(ticker: str, url: str) -> str:
