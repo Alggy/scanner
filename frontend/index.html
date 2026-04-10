@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentiment Scanner</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Custom Watchlist Drawer (slide-in from right) -->
+  <div id="custom-overlay" class="custom-overlay"></div>
+  <div id="custom-panel" class="custom-panel">
+    <div class="custom-panel-header">
+      <span class="custom-panel-title">Custom Watchlist</span>
+      <button id="custom-close" class="custom-close-btn">✕</button>
+    </div>
+    <div class="custom-panel-body">
+      <div class="custom-search-wrap">
+        <input id="custom-search" class="custom-search" type="text"
+               placeholder="Search ticker (e.g. NVDA)…" autocomplete="off" />
+        <ul id="custom-search-results" class="custom-results"></ul>
+      </div>
+      <div class="custom-divider">
+        Added <span id="custom-count">0</span>/10
+      </div>
+      <ul id="custom-list" class="custom-list"></ul>
+      <p class="custom-hint">Custom tickers are scanned alongside the auto watchlist.</p>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-inner">
+      <h1>Sentiment Scanner</h1>
+      <div class="header-controls">
+        <div class="window-tabs">
+          <button class="tab active" data-window="1h">1H</button>
+          <button class="tab" data-window="4h">4H</button>
+          <button class="tab" data-window="1d">1D</button>
+        </div>
+        <button id="scan-btn" class="scan-btn">Scan Now</button>
+        <span id="last-scan" class="last-scan">Loading...</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- KPI Cards -->
+    <section class="kpis">
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-tickers">—</div>
+        <div class="kpi-label">Tickers Tracked</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-posts">—</div>
+        <div class="kpi-label">Posts Analyzed</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-bullish">—</div>
+        <div class="kpi-label">Top Bullish</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-bearish">—</div>
+        <div class="kpi-label">Top Bearish</div>
+      </div>
+    </section>
+
+    <!-- Top Volatile Stocks -->
+    <section class="watchlist-section">
+      <div class="watchlist-header">
+        <span class="watchlist-title">Top Volatile Stocks</span>
+        <span class="watchlist-sub">Top movers from Finviz screener</span>
+        <span id="watchlist-refreshed" class="watchlist-refreshed"></span>
+      </div>
+      <div id="watchlist-chips" class="watchlist-chips">
+        <span class="watchlist-loading">Loading watchlist…</span>
+      </div>
+    </section>
+
+    <!-- Custom Watchlist Pane -->
+    <section class="watchlist-section" id="custom-pane">
+      <div class="watchlist-header">
+        <span class="watchlist-title">Custom Watchlist</span>
+        <span class="watchlist-sub">Your added tickers</span>
+        <span id="custom-pane-refreshed" class="watchlist-refreshed"></span>
+        <button id="custom-watchlist-btn" class="custom-edit-btn">Edit</button>
+      </div>
+      <div id="custom-pane-chips" class="watchlist-chips">
+        <span class="watchlist-loading">Loading…</span>
+      </div>
+    </section>
+
+    <!-- Main layout: table + detail panel -->
+    <section class="content">
+      <div class="table-panel">
+        <table id="ticker-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Ticker</th>
+              <th>Mentions</th>
+              <th>Bullish %</th>
+              <th>Bearish %</th>
+              <th>Sentiment</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody id="ticker-tbody">
+            <tr><td colspan="7" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="detail-panel" id="detail-panel">
+        <div class="detail-placeholder">
+          <p>Click a ticker to see recent posts &amp; sentiment breakdown.</p>
+        </div>
+        <div class="detail-content" style="display:none">
+          <div class="detail-header">
+            <h2 id="detail-ticker">—</h2>
+            <canvas id="detail-chart" width="220" height="120"></canvas>
+          </div>
+
+          <!-- AI Strategy Card -->
+          <div id="strategy-card" class="strategy-card" style="display:none">
+            <div class="strategy-header">AI Strategy</div>
+            <div id="strategy-loading" class="strategy-loading">Analyzing…</div>
+            <div id="strategy-body" style="display:none">
+              <div id="strategy-action" class="strategy-action">—</div>
+              <div id="strategy-rationale" class="strategy-rationale"></div>
+              <div class="strategy-rows">
+                <div class="strategy-row">
+                  <span class="strategy-label">Entry</span>
+                  <span id="strategy-entry" class="strategy-value"></span>
+                </div>
+                <div class="strategy-row">
+                  <span class="strategy-label">Exit</span>
+                  <span id="strategy-exit" class="strategy-value"></span>
+                </div>
+                <div class="strategy-row">
+                  <span class="strategy-label">Risk</span>
+                  <span id="strategy-risk" class="strategy-value"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <ul id="detail-posts"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
