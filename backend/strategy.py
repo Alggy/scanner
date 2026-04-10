@@ -5,17 +5,31 @@ Results are cached in memory per ticker (cleared on restart).
 import json
 import os
 
-import anthropic
+import requests as _requests
 
-_client = None
 _strategy_cache = {}
 
+_ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 
-def _get_client():
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    return _client
+
+def _call_claude(prompt: str, model: str = "claude-haiku-4-5-20251001", max_tokens: int = 350) -> str:
+    """Call Anthropic API via requests (avoids httpx issues on Vercel)."""
+    resp = _requests.post(
+        _ANTHROPIC_URL,
+        headers={
+            "x-api-key": os.environ["ANTHROPIC_API_KEY"],
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        json={
+            "model": model,
+            "max_tokens": max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        },
+        timeout=45,
+    )
+    resp.raise_for_status()
+    return resp.json()["content"][0]["text"].strip()
 
 
 def get_strategy(ticker, summary, posts):
@@ -60,12 +74,7 @@ Format:
   "exit_signal": "Brief exit / stop-loss condition."
 }}"""
 
-    msg = _get_client().messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=350,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = msg.content[0].text.strip()
+    raw = _call_claude(prompt, max_tokens=350)
 
     # Strip markdown code fences if model adds them anyway
     if raw.startswith("```"):

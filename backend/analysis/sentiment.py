@@ -3,18 +3,33 @@ from __future__ import annotations
 import json
 import os
 from typing import Any
-import anthropic
+import requests as _requests
 
 BATCH_SIZE = 15  # posts per Claude API call (used by per-ticker fallback)
 
-_client = None
+_ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+_MODEL = "claude-haiku-4-5-20251001"
 
 
-def _get_client() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    return _client
+def _call_claude(prompt: str, max_tokens: int = 1024) -> str:
+    """Call Anthropic API via requests (avoids httpx issues on Vercel)."""
+    api_key = os.environ["ANTHROPIC_API_KEY"]
+    resp = _requests.post(
+        _ANTHROPIC_URL,
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        json={
+            "model": _MODEL,
+            "max_tokens": max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        },
+        timeout=45,
+    )
+    resp.raise_for_status()
+    return resp.json()["content"][0]["text"].strip()
 
 
 def _build_prompt(ticker: str, posts: list[str]) -> str:
@@ -74,7 +89,6 @@ def score_all_tickers(ticker_post_map: dict[str, list[dict]]) -> list[dict[str, 
     if not entries:
         return []
 
-    client = _get_client()
     results: list[dict[str, Any]] = []
 
     # Process in chunks of 50 to stay within token limits
@@ -87,12 +101,7 @@ def score_all_tickers(ticker_post_map: dict[str, list[dict]]) -> list[dict[str, 
 
         prompt = _build_multi_ticker_prompt(chunk)
         try:
-            message = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=1024,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            raw = message.content[0].text.strip()
+            raw = _call_claude(prompt, max_tokens=1024)
             scores = json.loads(raw)
 
             for i, score in enumerate(scores):
@@ -129,19 +138,12 @@ def score_posts(ticker: str, posts: list[dict]) -> list[dict[str, Any]]:
     Returns list of dicts with keys: post_id, ticker, sentiment, confidence, reason.
     """
     results = []
-    client = _get_client()
-
     for i in range(0, len(posts), BATCH_SIZE):
         batch = posts[i : i + BATCH_SIZE]
         texts = [p["text"] for p in batch]
 
         try:
-            message = client.messages.create(
-                model="claude-haiku-4-5-20251001",  # fast + cheap for bulk scoring
-                max_tokens=1024,
-                messages=[{"role": "user", "content": _build_prompt(ticker, texts)}],
-            )
-            raw = message.content[0].text.strip()
+            raw = _call_claude(_build_prompt(ticker, texts), max_tokens=1024)
             scores = json.loads(raw)
 
             for j, score in enumerate(scores):
