@@ -17,7 +17,7 @@ def _call_claude(prompt: str, model: str = "claude-haiku-4-5-20251001", max_toke
     resp = _requests.post(
         _ANTHROPIC_URL,
         headers={
-            "x-api-key": os.environ["ANTHROPIC_API_KEY"],
+            "x-api-key": os.environ["ANTHROPIC_API_KEY"].strip(),
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         },

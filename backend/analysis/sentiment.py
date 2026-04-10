@@ -13,7 +13,7 @@ _MODEL = "claude-haiku-4-5-20251001"
 
 def _call_claude(prompt: str, max_tokens: int = 1024) -> str:
     """Call Anthropic API via requests (avoids httpx issues on Vercel)."""
-    api_key = os.environ["ANTHROPIC_API_KEY"]
+    api_key = os.environ["ANTHROPIC_API_KEY"].strip()
     resp = _requests.post(
         _ANTHROPIC_URL,
         headers={
