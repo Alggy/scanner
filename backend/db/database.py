@@ -2,10 +2,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 import os
 
-# DATABASE_PATH env var lets Render (or any host) point the DB at a persistent disk.
-# Locally it defaults to scanner.db in the project root.
-_default = os.path.join(os.path.dirname(__file__), "..", "..", "scanner.db")
-DB_PATH = os.environ.get("DATABASE_PATH", os.path.abspath(_default))
+# On Vercel the only writable directory is /tmp.
+# On Render/local, DATABASE_PATH env var overrides; defaults to scanner.db in project root.
+if os.environ.get("VERCEL"):
+    DB_PATH = "/tmp/scanner.db"
+else:
+    _default = os.path.join(os.path.dirname(__file__), "..", "..", "scanner.db")
+    DB_PATH = os.environ.get("DATABASE_PATH", os.path.abspath(_default))
+
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})

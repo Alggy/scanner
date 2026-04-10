@@ -11,6 +11,11 @@ _BASE = "https://query2.finance.yahoo.com/v1/finance/search"
 _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; sentiment-scanner/1.0)"}
 
 
+def fetch_for_ticker(ticker: str) -> list:
+    """Return a list of post dicts for a single ticker (used for parallel scraping)."""
+    return list(fetch_posts([ticker]))
+
+
 def fetch_posts(tickers: list) -> Generator[dict, None, None]:
     """Yield post dicts for each news article from Yahoo Finance."""
     for ticker in tickers:

@@ -1,5 +1,6 @@
+import os
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -8,6 +9,16 @@ from backend.db.models import TickerSummary, Post, SentimentScore, ScanLog
 import backend.watchlist as watchlist_module
 
 router = APIRouter(prefix="/api")
+
+_CRON_SECRET = os.environ.get("CRON_SECRET", "")
+
+
+def _verify_cron(request: Request):
+    """Reject requests that don't carry the Vercel cron secret."""
+    if _CRON_SECRET:
+        auth = request.headers.get("authorization", "")
+        if auth != f"Bearer {_CRON_SECRET}":
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 # ── Watchlist ─────────────────────────────────────────────────────────────────
@@ -227,3 +238,34 @@ def trigger_scan():
     thread = threading.Thread(target=run_scan, daemon=True)
     thread.start()
     return {"status": "scan triggered"}
+
+
+# ── Vercel Cron Endpoints ─────────────────────────────────────────────────────
+# Called by Vercel's cron scheduler (configured in vercel.json).
+# Locally these are no-ops unless CRON_SECRET is set.
+
+@router.get("/cron/scan")
+def cron_scan(request: Request):
+    """Cron: run a full sentiment scan. Fires every 5 min on weekdays."""
+    _verify_cron(request)
+    from backend.scheduler import run_scan
+    run_scan()
+    return {"status": "ok"}
+
+
+@router.get("/cron/watchlist-am")
+def cron_watchlist_am(request: Request):
+    """Cron: refresh watchlist at 8 AM ET (pre-market sort)."""
+    _verify_cron(request)
+    from backend.watchlist import refresh_watchlist
+    refresh_watchlist()
+    return {"status": "ok"}
+
+
+@router.get("/cron/watchlist-live")
+def cron_watchlist_live(request: Request):
+    """Cron: re-sort watchlist at 10 AM ET using live Finviz %."""
+    _verify_cron(request)
+    from backend.watchlist import refresh_watchlist
+    refresh_watchlist()
+    return {"status": "ok"}

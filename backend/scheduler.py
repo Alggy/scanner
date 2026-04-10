@@ -1,15 +1,27 @@
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from backend.db.database import SessionLocal
 from backend.db.models import Post, SentimentScore, TickerSummary, ScanLog
-from backend.scrapers import finviz, yahoo, newsapi
+from backend.scrapers import yahoo, newsapi   # Finviz news dropped — too slow (0.5s/ticker delay)
 from backend.watchlist import refresh_watchlist
 import backend.watchlist as watchlist_module
 from backend.analysis.ticker_extractor import extract_ticker_post_pairs
 from backend.analysis.sentiment import score_posts
 
 scheduler = BackgroundScheduler()
+
+_MAX_WORKERS = 5          # concurrent HTTP requests
+_BACKFILL_CAP = 30        # max unscored posts to catch up per cycle (was 200)
+
+
+def _scrape_ticker(ticker: str) -> list:
+    """Fetch posts for one ticker from all sources. Runs in a thread pool."""
+    posts = []
+    posts.extend(yahoo.fetch_for_ticker(ticker))
+    posts.extend(newsapi.fetch_for_ticker(ticker))
+    return posts
 
 
 def run_scan():
@@ -23,15 +35,18 @@ def run_scan():
     ticker_post_map: dict = {}
 
     try:
-        # 1. Scrape all sources (auto watchlist + any custom tickers)
+        # 1. Scrape all sources in parallel (one thread per ticker)
         current_tickers = list({*watchlist_module.CURRENT_TICKERS, *watchlist_module.CUSTOM_TICKERS})
         raw_posts = []
-        for post in finviz.fetch_posts(current_tickers):
-            raw_posts.append(post)
-        for post in yahoo.fetch_posts(current_tickers):
-            raw_posts.append(post)
-        for post in newsapi.fetch_posts(current_tickers):
-            raw_posts.append(post)
+
+        with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as executor:
+            futures = {executor.submit(_scrape_ticker, t): t for t in current_tickers}
+            for future in as_completed(futures):
+                ticker = futures[future]
+                try:
+                    raw_posts.extend(future.result())
+                except Exception as exc:
+                    print(f"[scan] Scrape error for {ticker}: {exc}")
 
         # 2. Extract tickers and deduplicate posts against DB
         for ticker, post in extract_ticker_post_pairs(raw_posts):
@@ -63,11 +78,10 @@ def run_scan():
 
         db.commit()
 
-        # 3. Backfill up to 200 existing unscored posts per cycle (prevents runaway scans)
-        BACKFILL_CAP = 200
+        # 3. Backfill up to _BACKFILL_CAP existing unscored posts
         scored_ids = {row[0] for row in db.query(SentimentScore.post_id).all()}
         unscored_q = db.query(Post).filter(Post.id.notin_(scored_ids)) if scored_ids else db.query(Post)
-        unscored = unscored_q.order_by(Post.id.desc()).limit(BACKFILL_CAP).all()
+        unscored = unscored_q.order_by(Post.id.desc()).limit(_BACKFILL_CAP).all()
         for post_row in unscored:
             if post_row.ticker not in ticker_post_map:
                 ticker_post_map[post_row.ticker] = []
@@ -76,7 +90,7 @@ def run_scan():
                 "text": post_row.text,
             })
 
-        # 4. Score sentiment per ticker (new + previously unscored)
+        # 4. Score sentiment per ticker (Claude Haiku batch)
         for ticker, posts in ticker_post_map.items():
             scores = score_posts(ticker, posts)
             for s in scores:
@@ -100,7 +114,8 @@ def run_scan():
         log.posts_scored = posts_scored
         log.tickers_found = len(ticker_post_map)
         db.commit()
-        print(f"[scan] Done — {posts_scraped} new posts, {len(ticker_post_map)} tickers")
+        elapsed = (log.finished_at - log.started_at).total_seconds()
+        print(f"[scan] Done in {elapsed:.1f}s — {posts_scraped} new posts, {len(ticker_post_map)} tickers")
 
     except Exception as exc:
         log.error = str(exc)
@@ -172,4 +187,4 @@ def start_scheduler():
     # Scan every 5 minutes
     scheduler.add_job(run_scan, "interval", minutes=5, id="scan", replace_existing=True)
     scheduler.start()
-    print("[scheduler] Started — watchlist refresh at 8:00 AM ET, live switch at 10:00 AM ET, scan every 5 minutes")
+    print("[scheduler] Started — watchlist refresh 8 AM ET, live switch 10 AM ET, scan every 5 min")

@@ -41,7 +41,8 @@ _SCREENER_URLS = [
 ]
 _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; sentiment-scanner/1.0)"}
 _TOP_N_PER_URL = 10   # rows to take from each screener URL
-_FINAL_CAP = 10       # final watchlist is capped at 10 tickers
+_FINAL_CAP = 5        # final watchlist capped at 5 — keeps scans well under 60s
+_REFRESH_TTL = 1800   # seconds before a refresh is considered stale (30 min)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -84,13 +85,24 @@ def get_merged_tickers() -> list:
 
 
 # ── Main refresh ──────────────────────────────────────────────────────────────
-def refresh_watchlist() -> list:
+def refresh_watchlist(force: bool = False) -> list:
     """
     Scrape Finviz screeners, optionally enrich with Yahoo pre-market prices,
     sort descending by change%, and cap to _FINAL_CAP tickers.
+
+    Lazy refresh: skips if called within _REFRESH_TTL seconds of the last
+    successful refresh (unless force=True). This prevents cold-start overhead
+    on Vercel when multiple requests arrive in quick succession.
+
     Returns the updated CURRENT_TICKERS list.
     """
     global CURRENT_TICKERS, CURRENT_WATCHLIST, LAST_REFRESHED
+
+    if not force and LAST_REFRESHED:
+        age = (datetime.datetime.utcnow() - datetime.datetime.fromisoformat(LAST_REFRESHED)).total_seconds()
+        if age < _REFRESH_TTL:
+            print(f"[watchlist] Skipping refresh — last refresh {age:.0f}s ago (TTL={_REFRESH_TTL}s)")
+            return CURRENT_TICKERS
 
     try:
         # 1. Scrape both presets

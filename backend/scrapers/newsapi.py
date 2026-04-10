@@ -18,6 +18,11 @@ def _make_id(ticker: str, url: str) -> str:
     return hashlib.sha1(f"{ticker}::{url}".encode()).hexdigest()[:16]
 
 
+def fetch_for_ticker(ticker: str) -> list:
+    """Return a list of post dicts for a single ticker (used for parallel scraping)."""
+    return list(fetch_posts([ticker]))
+
+
 def fetch_posts(tickers: list) -> Generator[dict, None, None]:
     """Yield post dicts for each news article returned by NewsAPI."""
     api_key = os.environ.get("NEWSAPI_KEY", "")

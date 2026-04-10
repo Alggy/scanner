@@ -3,16 +3,16 @@ services:
     name: sentiment-scanner
     runtime: python
     region: oregon
-    plan: starter          # free plan works but has no persistent disk
+    plan: starter # free plan works but has no persistent disk
     buildCommand: pip install -r requirements.txt
     startCommand: python3 run.py
     envVars:
       - key: ANTHROPIC_API_KEY
-        sync: false          # set this manually in the Render dashboard
+        sync: false # set this manually in the Render dashboard
       - key: NEWSAPI_KEY
-        sync: false          # optional — leave blank if you don't have one
+        sync: false # optional — leave blank if you don't have one
       - key: DATABASE_PATH
-        value: /data/scanner.db   # points to the persistent disk below
+        value: /data/scanner.db # points to the persistent disk below
 
     # Persistent disk keeps the SQLite database across restarts and deploys.
     # $0.25 / GB / month — remove this block if you want the free plan

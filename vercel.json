@@ -1,0 +1,19 @@
+{
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb",
+        "includeFiles": ["backend/**", "frontend/**"]
+      }
+    }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "api/index.py" }
+  ],
+  "crons": [
+    { "path": "/api/cron/watchlist-am",   "schedule": "0 12 * * 1-5" },
+    { "path": "/api/cron/watchlist-live", "schedule": "0 14 * * 1-5" }
+  ]
+}

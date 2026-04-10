@@ -47,3 +47,4 @@ logs/
 
 # ── Claude Code (local dev tool config — not needed by others) ─────────────────
 .claude/
+.vercel

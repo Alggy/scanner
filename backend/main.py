@@ -18,7 +18,13 @@ FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    start_scheduler()
+    if os.environ.get("VERCEL"):
+        # Serverless: no persistent background scheduler.
+        # Refresh the watchlist once on cold start so the UI isn't empty.
+        from backend.watchlist import refresh_watchlist
+        refresh_watchlist()
+    else:
+        start_scheduler()
     yield
 
 
