@@ -117,7 +117,8 @@ def score_all_tickers(ticker_post_map: dict[str, list[dict]]) -> list[dict[str, 
                     "reason": "parse error",
                 })
         except Exception as exc:
-            print(f"[sentiment] Claude API error (multi-ticker): {exc}")
+            # Re-raise so run_scan() can capture it in log.error
+            raise RuntimeError(f"[sentiment] Claude API error (multi-ticker chunk {start}): {exc}") from exc
 
     return results
 
