@@ -232,12 +232,12 @@ def get_scan_status(db: Session = Depends(get_db)):
 
 @router.post("/scan/trigger")
 def trigger_scan():
-    """Manually trigger a scan (runs in background thread)."""
-    import threading
+    """Manually trigger a scan — runs synchronously so Vercel doesn't kill it.
+    Returns when the scan is complete (typically 15–30s).
+    """
     from backend.scheduler import run_scan
-    thread = threading.Thread(target=run_scan, daemon=True)
-    thread.start()
-    return {"status": "scan triggered"}
+    run_scan()
+    return {"status": "scan complete"}
 
 
 # ── Vercel Cron Endpoints ─────────────────────────────────────────────────────

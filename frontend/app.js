@@ -439,20 +439,20 @@ async function triggerScan() {
   btn.disabled = true;
   btn.textContent = "Scanning…";
   try {
-    await fetch("/api/scan/trigger", { method: "POST" });
-    document.getElementById("last-scan").textContent = "Scan running…";
-    let polls = 0;
-    const poll = setInterval(async () => {
-      polls++;
-      await loadStatus();
-      loadTickers();
-      if (polls >= 30) {
-        clearInterval(poll);
-        btn.disabled = false;
-        btn.textContent = "Scan Now";
-      }
-    }, 5_000);
-  } catch {
+    // Scan runs synchronously on the server — wait up to 55s for it to finish
+    const res = await fetch("/api/scan/trigger", {
+      method: "POST",
+      signal: AbortSignal.timeout(55_000),
+    });
+    const data = await res.json().catch(() => ({}));
+    document.getElementById("last-scan").textContent =
+      data.status === "scan complete" ? "Last scan: just now" : "Scan running…";
+    await loadStatus();
+    loadTickers();
+  } catch (err) {
+    document.getElementById("last-scan").textContent =
+      err.name === "TimeoutError" ? "Scan timed out — try again" : "Scan error";
+  } finally {
     btn.disabled = false;
     btn.textContent = "Scan Now";
   }
