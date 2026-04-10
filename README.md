@@ -13,12 +13,12 @@ An equity day-trading scanner that monitors news sentiment for the most volatile
 
 ## Data Sources
 
-| Source | What it provides |
-|--------|-----------------|
-| Finviz screener | Dynamic watchlist (top gainers + unusual volume) |
-| Finviz news | Per-ticker headline news |
-| Yahoo Finance | Per-ticker news + pre-market prices |
-| NewsAPI *(optional)* | Broader financial news articles |
+| Source               | What it provides                                 |
+| -------------------- | ------------------------------------------------ |
+| Finviz screener      | Dynamic watchlist (top gainers + unusual volume) |
+| Finviz news          | Per-ticker headline news                         |
+| Yahoo Finance        | Per-ticker news + pre-market prices              |
+| NewsAPI _(optional)_ | Broader financial news articles                  |
 
 ## Requirements
 
@@ -85,34 +85,34 @@ scanner/
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/watchlist` | Current auto + custom watchlist |
-| PUT | `/api/watchlist/custom` | Update custom tickers `{"tickers": ["NVDA"]}` |
-| GET | `/api/prices` | Pre-market/live % for watchlist tickers |
-| GET | `/api/prices/custom` | Pre-market/live % for custom tickers |
-| GET | `/api/search/tickers?q=` | Ticker autocomplete |
-| GET | `/api/tickers?window=1h\|4h\|1d` | Ranked sentiment table |
-| GET | `/api/tickers/{ticker}` | Detail: posts + sentiment breakdown |
-| GET | `/api/tickers/{ticker}/strategy` | AI day-trading strategy (cached) |
-| GET | `/api/scan/status` | Last scan metadata + DB stats |
-| POST | `/api/scan/trigger` | Manually trigger a scan |
+| Method | Path                             | Description                                   |
+| ------ | -------------------------------- | --------------------------------------------- |
+| GET    | `/api/watchlist`                 | Current auto + custom watchlist               |
+| PUT    | `/api/watchlist/custom`          | Update custom tickers `{"tickers": ["NVDA"]}` |
+| GET    | `/api/prices`                    | Pre-market/live % for watchlist tickers       |
+| GET    | `/api/prices/custom`             | Pre-market/live % for custom tickers          |
+| GET    | `/api/search/tickers?q=`         | Ticker autocomplete                           |
+| GET    | `/api/tickers?window=1h\|4h\|1d` | Ranked sentiment table                        |
+| GET    | `/api/tickers/{ticker}`          | Detail: posts + sentiment breakdown           |
+| GET    | `/api/tickers/{ticker}/strategy` | AI day-trading strategy (cached)              |
+| GET    | `/api/scan/status`               | Last scan metadata + DB stats                 |
+| POST   | `/api/scan/trigger`              | Manually trigger a scan                       |
 
 ## Scheduler
 
-| Time (ET) | Job |
-|-----------|-----|
-| Startup | Watchlist refresh + immediate scan |
+| Time (ET)      | Job                                 |
+| -------------- | ----------------------------------- |
+| Startup        | Watchlist refresh + immediate scan  |
 | 08:00 AM daily | Refresh watchlist (pre-market sort) |
-| 10:00 AM daily | Re-sort watchlist with live prices |
-| Every 5 min | Scrape news + score sentiment |
+| 10:00 AM daily | Re-sort watchlist with live prices  |
+| Every 5 min    | Scrape news + score sentiment       |
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | ✅ Yes | Powers sentiment scoring and strategy cards |
-| `NEWSAPI_KEY` | ❌ No | Adds NewsAPI as a third news source |
+| Variable            | Required | Description                                 |
+| ------------------- | -------- | ------------------------------------------- |
+| `ANTHROPIC_API_KEY` | ✅ Yes   | Powers sentiment scoring and strategy cards |
+| `NEWSAPI_KEY`       | ❌ No    | Adds NewsAPI as a third news source         |
 
 ## Notes
 

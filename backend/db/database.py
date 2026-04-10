@@ -2,8 +2,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "scanner.db")
-DATABASE_URL = f"sqlite:///{os.path.abspath(DB_PATH)}"
+# DATABASE_PATH env var lets Render (or any host) point the DB at a persistent disk.
+# Locally it defaults to scanner.db in the project root.
+_default = os.path.join(os.path.dirname(__file__), "..", "..", "scanner.db")
+DB_PATH = os.environ.get("DATABASE_PATH", os.path.abspath(_default))
+DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
